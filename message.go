@@ -8,8 +8,11 @@ import (
 const (
 	CommandUserConnect                    = "user-connect"
 	CommandMessageSend                    = "message-send"
+	CommandGroupJoin                      = "group-join"
+	CommandGroupLeave                     = "group-leave"
 	TypeMessageText                       = "text"
 	TypeTargetDirect                      = "direct"
+	TypeTargetGroup                       = "group"
 	MessageUserConnectSuccessful          = "connected successfully"
 	ResponseMessageSuccess                = "success"
 	ResponseMessageUserTargetNotConnected = "target user is not connected"
@@ -21,6 +24,7 @@ type (
 	Message struct {
 		Command  string        `json:"command,omitempty"`
 		Channel  *Channel      `json:"channel,omitempty"`
+		Group    *Group        `json:"grop,omitempty"`
 		User     *User         `json:"user,omitempty"`
 		Message  *MessageInfo  `json:"message,omitempty"`
 		Target   *TargetInfo   `json:"target,omitempty"`
@@ -34,8 +38,9 @@ type (
 	}
 
 	TargetInfo struct {
-		Type string `json:"type"`
-		User *User  `json:"user,omitempty"`
+		Type  string `json:"type"`
+		User  *User  `json:"user,omitempty"`
+		Group *Group `json:"group,omitempty"`
 	}
 
 	ResponseInfo struct {
