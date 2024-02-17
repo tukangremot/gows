@@ -126,15 +126,6 @@ func (user *User) WritePump() {
 	}
 }
 
-func (user *User) handleUserdisconnect() {
-	if user.channel != nil {
-		user.channel.unregisterUser <- user
-	}
-
-	close(user.send)
-	user.conn.Close()
-}
-
 func (user *User) handleUserConnect(message Message) {
 	if message.User != nil && message.Channel != nil {
 		user.ID = message.User.ID
@@ -176,6 +167,61 @@ func (user *User) handleUserConnect(message Message) {
 	user.send <- []byte(message.encode())
 }
 
+func (user *User) handleUserdisconnect() {
+	if user.channel != nil {
+		user.channel.unregisterUser <- user
+	}
+
+	close(user.send)
+	user.conn.Close()
+}
+
+func (user *User) handleGroupJoin(message Message) {
+	if message.Group != nil {
+		group := user.channel.findGroupByID(message.Group.ID)
+		if group == nil {
+			group = NewGroup(
+				message.Group.ID,
+				message.Group.Name,
+				message.Group.AdditionalInfo,
+			)
+
+			go group.Run()
+
+		}
+
+		user.channel.registerGroup <- group
+		group.registerUser <- user
+		user.groups[group.ID] = group
+
+		message.User = user
+		message.Message = &MessageInfo{
+			Type: TypeMessageText,
+			Text: MessageGroupJoin,
+		}
+		message.Response = &ResponseInfo{
+			Status:  true,
+			Message: ResponseMessageSuccess,
+		}
+
+		user.send <- []byte(message.encode())
+	}
+}
+
+func (user *User) handleGroupLeave(message Message) {
+	if message.Group != nil {
+		group := user.channel.findGroupByID(message.Group.ID)
+		if group != nil {
+			delete(user.groups, user.ID)
+			group.unregisterUser <- user
+
+			if len(group.users) == 0 {
+				user.channel.unregisterGroup <- group
+			}
+		}
+	}
+}
+
 func (user *User) handleSendMessage(message Message) {
 	if message.Message != nil && message.Target != nil {
 		switch message.Target.Type {
@@ -203,10 +249,14 @@ func (user *User) handleSendDirectMessage(message Message) {
 				Message: ResponseMessageUserTargetNotConnected,
 			}
 
+			message.User = user
+
 			user.send <- []byte(message.encode())
 		} else {
 			userTarget.send <- []byte(message.encode())
 
+			message.User = user
+			message.Target.User = userTarget
 			message.Response = &ResponseInfo{
 				Status:  true,
 				Message: ResponseMessageSuccess,
@@ -220,44 +270,22 @@ func (user *User) handleSendDirectMessage(message Message) {
 func (user *User) handlerSendGroupMessage(message Message) {
 	if message.Target.Group != nil {
 		groupTarget := user.channel.findGroupByID(message.Target.Group.ID)
-		for _, userGroupTarget := range groupTarget.users {
-			if userGroupTarget.ID != user.ID {
-				userGroupTarget.send <- []byte(message.encode())
+		if groupTarget != nil {
+			message.User = user
+			message.Target.Group = groupTarget
+
+			for _, userGroupTarget := range groupTarget.users {
+				if userGroupTarget.ID != user.ID {
+					userGroupTarget.send <- []byte(message.encode())
+				}
 			}
-		}
-	}
-}
 
-func (user *User) handleGroupJoin(message Message) {
-	if message.Group != nil {
-		group := user.channel.findGroupByID(message.Group.ID)
-		if group == nil {
-			group = NewGroup(
-				message.Group.ID,
-				message.Group.Name,
-				message.Group.AdditionalInfo,
-			)
-
-			user.channel.registerGroup <- group
-
-			go group.Run()
-		}
-
-		group.registerUser <- user
-		user.groups[group.ID] = group
-	}
-}
-
-func (user *User) handleGroupLeave(message Message) {
-	if message.Group != nil {
-		group := user.channel.findGroupByID(message.Group.ID)
-		if group != nil {
-			delete(user.groups, user.ID)
-			group.unregisterUser <- user
-
-			if len(group.users) == 0 {
-				user.channel.unregisterGroup <- group
+			message.Response = &ResponseInfo{
+				Status:  true,
+				Message: ResponseMessageSuccess,
 			}
+
+			user.send <- []byte(message.encode())
 		}
 	}
 }

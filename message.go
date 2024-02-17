@@ -14,17 +14,17 @@ const (
 	TypeTargetDirect                      = "direct"
 	TypeTargetGroup                       = "group"
 	MessageUserConnectSuccessful          = "connected successfully"
+	MessageGroupJoin                      = "join group successful"
 	ResponseMessageSuccess                = "success"
-	ResponseMessageUserTargetNotConnected = "target user is not connected"
-	ResponseMessagMessageSendSuccessfull  = "send message successful"
 	ResponseMessageInvalidPayload         = "invalid payload"
+	ResponseMessageUserTargetNotConnected = "target user is not connected"
 )
 
 type (
 	Message struct {
 		Command  string        `json:"command,omitempty"`
 		Channel  *Channel      `json:"channel,omitempty"`
-		Group    *Group        `json:"grop,omitempty"`
+		Group    *Group        `json:"group,omitempty"`
 		User     *User         `json:"user,omitempty"`
 		Message  *MessageInfo  `json:"message,omitempty"`
 		Target   *TargetInfo   `json:"target,omitempty"`

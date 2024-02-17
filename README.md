@@ -81,7 +81,7 @@ Payload
     "group": {
         "id": "<your-group-id>",
         "name": "<your-group-name>",
-        "additionalInfo": {}
+        "additionalInfo": {} // object of string
     }
 }
 ```
@@ -93,7 +93,38 @@ Example
     "group": {
         "id": "1",
         "name": "Group 1",
-        "additionalInfo": {}
+        "additionalInfo": {
+            "icon": "https://example.com/avatar.jpg"
+        }
+    }
+}
+```
+
+Response
+```json
+{
+    "command": "group-join",
+    "group": {
+        "id": "1",
+        "name": "Group 1",
+        "additionalInfo": {
+            "icon": "https://example.com/avatar.jpg"
+        }
+    },
+    "user": {
+        "id": "1",
+        "name": "John",
+        "additionalInfo": {
+            "avatar": "https://example.com/avatar.jpg"
+        }
+    },
+    "message": {
+        "type": "text",
+        "text": "join group successful"
+    },
+    "response": {
+        "status": true,
+        "message": "success"
     }
 }
 ```
@@ -229,7 +260,7 @@ Example
     "target": {
         "type": "group",
         "group": {
-            "id": "2"
+            "id": "1"
         }
     },
     "message": {
@@ -238,7 +269,6 @@ Example
         "additionalInfo": {}
     }
 }
-
 ```
 
 Response

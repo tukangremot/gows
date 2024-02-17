@@ -20,6 +20,7 @@ func NewChannel(ID string, Name string, AdditionalInfo map[string]string) *Chann
 		Name:            Name,
 		AdditionalInfo:  AdditionalInfo,
 		users:           make(map[string]*User),
+		groups:          map[string]*Group{},
 		registerUser:    make(chan *User),
 		unregisterUser:  make(chan *User),
 		registerGroup:   make(chan *Group),
