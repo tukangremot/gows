@@ -232,7 +232,7 @@ func (user *User) handleGroupJoin(message Message) {
 		message.User = user
 		message.Message = &MessageInfo{
 			Type: TypeMessageText,
-			Text: MessageGroupJoin,
+			Text: MessageGroupJoinSuccessful,
 		}
 		message.Response = &ResponseInfo{
 			Status:  true,
@@ -256,6 +256,10 @@ func (user *User) handleGroupLeave(message Message) {
 
 			message.User = user
 			message.Group = group
+			message.Message = &MessageInfo{
+				Type: TypeMessageText,
+				Text: MessageGroupLeaveSuccessful,
+			}
 			message.Response = &ResponseInfo{
 				Status:  true,
 				Message: ResponseMessageSuccess,
