@@ -72,22 +72,72 @@ Response
 }
 ```
 
+
+### Group Join
+Payload
+```json
+{
+    "command": "group-join",
+    "group": {
+        "id": "<your-group-id>",
+        "name": "<your-group-name>",
+        "additionalInfo": {} // object of string
+    }
+}
+```
+
+Example
+```json
+{
+    "command": "group-join",
+    "group": {
+        "id": "1",
+        "name": "Group 1",
+        "additionalInfo": {
+            "icon": "https://example.com/avatar.jpg"
+        }
+    }
+}
+```
+
+Response
+```json
+{
+    "command": "group-join",
+    "group": {
+        "id": "1",
+        "name": "Group 1",
+        "additionalInfo": {
+            "icon": "https://example.com/avatar.jpg"
+        }
+    },
+    "user": {
+        "id": "1",
+        "name": "John",
+        "additionalInfo": {
+            "avatar": "https://example.com/avatar.jpg"
+        }
+    },
+    "message": {
+        "type": "text",
+        "text": "join group successful"
+    },
+    "response": {
+        "status": true,
+        "message": "success"
+    }
+}
+```
+
 ### Send Direct Message
 Payload
 ```json
 {
     "command": "message-send",
-    "user": {
-        "id": "<your-user-id>",
-        "name": "<your-user-name>",
-        "additionalInfo": {} // object of string
-    },
     "target": {
         "type": "direct",
         "user": {
-            "id": "<your-user-target-id>",
-            "name": "<your-user-target-name>",
-            "additionalInfo": {} // object of string
+            "id": "<your-user-target-id>"
         }
     },
     "message": {
@@ -96,6 +146,25 @@ Payload
         "additionalInfo": {} // object of string
     }
 }
+```
+
+Example
+```json
+{
+    "command": "message-send",
+    "target": {
+        "type": "direct",
+        "user": {
+            "id": "2"
+        }
+    },
+    "message": {
+        "type": "text",
+        "text": "Hallo Emma",
+        "additionalInfo": {}
+    }
+}
+
 ```
 
 Response
@@ -156,6 +225,110 @@ The message received by the target
         "user": {
             "id": "2",
             "name": "Emma",
+            "additionalInfo": {
+                "avatar": "https://example.com/avatar.jpg"
+            }
+        }
+    }
+}
+```
+
+
+### Send Group Message
+Payload
+```json
+{
+    "command": "message-send",
+    "target": {
+        "type": "group",
+        "group": {
+            "id": "<your-group-target-id>"
+        }
+    },
+    "message": {
+        "type": "<message-type>", // text
+        "text": "<message-text>",
+        "additionalInfo": {} // object of string
+    }
+}
+```
+
+Example
+```json
+{
+    "command": "message-send",
+    "target": {
+        "type": "group",
+        "group": {
+            "id": "1"
+        }
+    },
+    "message": {
+        "type": "text",
+        "text": "Hallo Guys",
+        "additionalInfo": {}
+    }
+}
+```
+
+Response
+```json
+{
+    "command": "message-send",
+    "user": {
+        "id": "1",
+        "name": "John",
+        "additionalInfo": {
+            "avatar": "https://example.com/avatar.jpg"
+        }
+    },
+    "message": {
+        "type": "text",
+        "text": "halo",
+        "additionalInfo": {
+            "link": "https://example.com/avatar.jpg"
+        }
+    },
+    "target": {
+        "type": "group",
+        "user": {
+            "id": "1",
+            "name": "Group 1",
+            "additionalInfo": {
+                "avatar": "https://example.com/avatar.jpg"
+            }
+        }
+    },
+    "response": {
+        "status": true,
+        "message": "success"
+    }
+}
+```
+
+The message received by the target
+```json
+{
+    "command": "message-send",
+    "user": {
+        "id": "1",
+        "name": "John",
+        "additionalInfo": {
+            "avatar": "https://example.com/avatar.jpg"
+        }
+    },
+    "message": {
+        "type": "text",
+        "text": "halo",
+        "additionalInfo": {
+            "link": "https://example.com/avatar.jpg"
+        }
+    },
+    "target": {
+        "type": "group",
+        "user": {
+            "id": "1",
+            "name": "Group 1",
             "additionalInfo": {
                 "avatar": "https://example.com/avatar.jpg"
             }

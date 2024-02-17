@@ -27,6 +27,7 @@ type User struct {
 	conn           *websocket.Conn
 	server         *Server
 	channel        *Channel
+	groups         map[string]*Group
 	send           chan []byte
 }
 
@@ -34,6 +35,7 @@ func NewUser(conn *websocket.Conn, server *Server) *User {
 	return &User{
 		conn:   conn,
 		server: server,
+		groups: make(map[string]*Group),
 		send:   make(chan []byte, 256),
 	}
 }
@@ -68,6 +70,14 @@ func (user *User) ReadPump() {
 		case CommandMessageSend:
 			if user.channel != nil {
 				user.handleSendMessage(message)
+			}
+		case CommandGroupJoin:
+			if user.channel != nil {
+				user.handleGroupJoin(message)
+			}
+		case CommandGroupLeave:
+			if user.channel != nil {
+				user.handleGroupLeave(message)
 			}
 		}
 	}
@@ -116,15 +126,6 @@ func (user *User) WritePump() {
 	}
 }
 
-func (user *User) handleUserdisconnect() {
-	if user.channel != nil {
-		user.channel.unregisterUser <- user
-	}
-
-	close(user.send)
-	user.conn.Close()
-}
-
 func (user *User) handleUserConnect(message Message) {
 	if message.User != nil && message.Channel != nil {
 		user.ID = message.User.ID
@@ -166,11 +167,68 @@ func (user *User) handleUserConnect(message Message) {
 	user.send <- []byte(message.encode())
 }
 
+func (user *User) handleUserdisconnect() {
+	if user.channel != nil {
+		user.channel.unregisterUser <- user
+	}
+
+	close(user.send)
+	user.conn.Close()
+}
+
+func (user *User) handleGroupJoin(message Message) {
+	if message.Group != nil {
+		group := user.channel.findGroupByID(message.Group.ID)
+		if group == nil {
+			group = NewGroup(
+				message.Group.ID,
+				message.Group.Name,
+				message.Group.AdditionalInfo,
+			)
+
+			go group.Run()
+
+		}
+
+		user.channel.registerGroup <- group
+		group.registerUser <- user
+		user.groups[group.ID] = group
+
+		message.User = user
+		message.Message = &MessageInfo{
+			Type: TypeMessageText,
+			Text: MessageGroupJoin,
+		}
+		message.Response = &ResponseInfo{
+			Status:  true,
+			Message: ResponseMessageSuccess,
+		}
+
+		user.send <- []byte(message.encode())
+	}
+}
+
+func (user *User) handleGroupLeave(message Message) {
+	if message.Group != nil {
+		group := user.channel.findGroupByID(message.Group.ID)
+		if group != nil {
+			delete(user.groups, user.ID)
+			group.unregisterUser <- user
+
+			if len(group.users) == 0 {
+				user.channel.unregisterGroup <- group
+			}
+		}
+	}
+}
+
 func (user *User) handleSendMessage(message Message) {
-	if message.User != nil && message.Message != nil && message.Target != nil {
+	if message.Message != nil && message.Target != nil {
 		switch message.Target.Type {
 		case TypeTargetDirect:
 			user.handleSendDirectMessage(message)
+		case TypeTargetGroup:
+			user.handlerSendGroupMessage(message)
 		}
 	} else {
 		message.Response = &ResponseInfo{
@@ -183,22 +241,51 @@ func (user *User) handleSendMessage(message Message) {
 }
 
 func (user *User) handleSendDirectMessage(message Message) {
-	userTarget := user.channel.getUserByID(message.Target.User.ID)
-	if userTarget == nil {
-		message.Response = &ResponseInfo{
-			Status:  false,
-			Message: ResponseMessageUserTargetNotConnected,
+	if message.Target.User != nil {
+		userTarget := user.channel.findUserByID(message.Target.User.ID)
+		if userTarget == nil {
+			message.Response = &ResponseInfo{
+				Status:  false,
+				Message: ResponseMessageUserTargetNotConnected,
+			}
+
+			message.User = user
+
+			user.send <- []byte(message.encode())
+		} else {
+			userTarget.send <- []byte(message.encode())
+
+			message.User = user
+			message.Target.User = userTarget
+			message.Response = &ResponseInfo{
+				Status:  true,
+				Message: ResponseMessageSuccess,
+			}
+
+			user.send <- []byte(message.encode())
 		}
+	}
+}
 
-		user.send <- []byte(message.encode())
-	} else {
-		userTarget.send <- []byte(message.encode())
+func (user *User) handlerSendGroupMessage(message Message) {
+	if message.Target.Group != nil {
+		groupTarget := user.channel.findGroupByID(message.Target.Group.ID)
+		if groupTarget != nil {
+			message.User = user
+			message.Target.Group = groupTarget
 
-		message.Response = &ResponseInfo{
-			Status:  true,
-			Message: ResponseMessageSuccess,
+			for _, userGroupTarget := range groupTarget.users {
+				if userGroupTarget.ID != user.ID {
+					userGroupTarget.send <- []byte(message.encode())
+				}
+			}
+
+			message.Response = &ResponseInfo{
+				Status:  true,
+				Message: ResponseMessageSuccess,
+			}
+
+			user.send <- []byte(message.encode())
 		}
-
-		user.send <- []byte(message.encode())
 	}
 }
