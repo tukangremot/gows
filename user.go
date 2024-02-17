@@ -29,6 +29,7 @@ var (
 type (
 	UserActivity struct {
 		Type    string
+		User    *User
 		Message *Message
 	}
 
@@ -156,6 +157,7 @@ func (user *User) GetActivity() chan *UserActivity {
 func (user *User) SetActivity(activityType string, message *Message) {
 	user.activity <- &UserActivity{
 		Type:    activityType,
+		User:    user,
 		Message: message,
 	}
 }
