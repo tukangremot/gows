@@ -33,7 +33,7 @@ func serveWs(server *gochat.Server, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	wsServer := gochat.NewServer()
+	wsServer := gochat.NewServer(nil)
 	go wsServer.Run()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {

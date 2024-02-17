@@ -4,14 +4,19 @@ type Server struct {
 	channels          map[string]*Channel
 	registerChannel   chan *Channel
 	unregisterChannel chan *Channel
+	PubSub            *PubSub
 }
 
-func NewServer() *Server {
-	return &Server{
-		channels:          make(map[string]*Channel),
-		registerChannel:   make(chan *Channel),
-		unregisterChannel: make(chan *Channel),
+func NewServer(server *Server) *Server {
+	if server == nil {
+		server = &Server{}
 	}
+
+	server.channels = make(map[string]*Channel)
+	server.registerChannel = make(chan *Channel)
+	server.unregisterChannel = make(chan *Channel)
+
+	return server
 }
 
 func (server *Server) Run() {

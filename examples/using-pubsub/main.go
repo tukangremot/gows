@@ -30,26 +30,12 @@ func serveWs(server *gochat.Server, w http.ResponseWriter, r *http.Request) {
 
 	go user.WritePump()
 	go user.ReadPump()
-
-	for activity := range user.GetActivity() {
-		switch activity.Type {
-		case gochat.TypeUserActivityChannelConnect:
-			// do somthing when user connect to channel
-		case gochat.TypeUserActivityGroupJoin:
-			// do somthing when user join to group
-		case gochat.TypeUserActivityGroupLeave:
-			// do somthing when user leave from group
-		case gochat.TypeUserActivityMessageSend:
-			// do somthing when user send message
-		case gochat.TypeUserActivityDisconnect:
-			// do somthing when user disconnet
-		}
-	}
-
 }
 
 func main() {
-	wsServer := gochat.NewServer(nil)
+	wsServer := gochat.NewServer(&gochat.Server{
+		PubSub: gochat.NewPubSub(),
+	})
 	go wsServer.Run()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
