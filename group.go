@@ -1,5 +1,7 @@
 package gochat
 
+import "log"
+
 type Group struct {
 	ID             string            `json:"id"`
 	Name           string            `json:"name"`
@@ -34,8 +36,22 @@ func (group *Group) Run() {
 
 func (group *Group) handleRegisterUser(user *User) {
 	group.users[user.ID] = user
+
+	if user.server.Session != nil {
+		err := user.server.Session.registerUserGroup(user.server.ctx, group, user)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }
 
 func (group *Group) handleUnregisterUser(user *User) {
 	delete(group.users, user.ID)
+
+	if user.server.Session != nil {
+		err := user.server.Session.unregisterUserGroup(user.server.ctx, group, user)
+		if err != nil {
+			log.Println(err)
+		}
+	}
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 	"github.com/tukangremot/gochat"
 )
 
@@ -34,7 +35,16 @@ func serveWs(server *gochat.Server, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	wsServer := gochat.NewServer(nil)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "password",
+		DB:       0,
+	})
+
+	wsServer := gochat.NewServer(&gochat.Server{
+		PubSub:  gochat.NewPubSub(gochat.PubSubDriverRedis, redisClient),
+		Session: gochat.NewSession(gochat.SessionDriverRedis, redisClient),
+	})
 	go wsServer.Run()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
