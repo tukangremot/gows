@@ -235,7 +235,11 @@ func (user *User) handleUserdisconnect() {
 	close(user.send)
 	close(user.activity)
 	user.conn.Close()
-	user.pubSub.Close()
+
+	if user.pubSub != nil {
+		user.pubSub.Close()
+	}
+
 }
 
 func (user *User) handleGroupJoin(message Message) {
