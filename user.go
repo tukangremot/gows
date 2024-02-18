@@ -47,6 +47,7 @@ type (
 		send              chan []byte
 		activity          chan *UserActivity
 		isActive          bool
+		pubSub            *redis.PubSub
 	}
 )
 
@@ -234,6 +235,7 @@ func (user *User) handleUserdisconnect() {
 	close(user.send)
 	close(user.activity)
 	user.conn.Close()
+	user.pubSub.Close()
 }
 
 func (user *User) handleGroupJoin(message Message) {
@@ -387,13 +389,15 @@ func (user *User) subscribePubSub() {
 		case PubSubDriverRedis:
 			redisClient := user.server.PubSub.conn.(*redis.Client)
 
-			pubsub := redisClient.Subscribe(user.server.ctx, fmt.Sprintf("message:%s:%s", user.channel.ID, user.ID))
-
-			defer pubsub.Close()
+			user.pubSub = redisClient.Subscribe(user.server.ctx, fmt.Sprintf("message:%s:%s", user.channel.ID, user.ID))
 
 			for {
-				messageBytes, err := pubsub.ReceiveMessage(user.server.ctx)
+				messageBytes, err := user.pubSub.ReceiveMessage(user.server.ctx)
 				if err != nil {
+					if err.Error() == "redis: client is closed" {
+						break
+					}
+
 					log.Println(err)
 				} else {
 					var message Message
