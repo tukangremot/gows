@@ -46,6 +46,7 @@ type (
 		groups            map[string]*Group
 		send              chan []byte
 		activity          chan *UserActivity
+		isActive          bool
 	}
 )
 
@@ -188,6 +189,11 @@ func (user *User) handleUserConnect(message Message) {
 			user.server.registerChannel <- user.channel
 
 			go user.channel.Run()
+		}
+
+		if !user.isActive {
+			user.isActive = true
+
 			go user.subscribePubSub()
 		}
 
@@ -223,7 +229,10 @@ func (user *User) handleUserdisconnect() {
 		user.channel.unregisterUser <- user
 	}
 
+	user.isActive = false
+
 	close(user.send)
+	close(user.activity)
 	user.conn.Close()
 }
 
@@ -347,13 +356,18 @@ func (user *User) handleSendDirectMessage(message Message) {
 func (user *User) handlerSendGroupMessage(message Message) {
 	if message.Target.Group != nil {
 		groupTarget := user.channel.findGroupByID(message.Target.Group.ID)
-		if groupTarget == nil {
+		if groupTarget != nil {
 			message.User = user
 			message.Target.Group = groupTarget
 
-			for _, userGroupTarget := range groupTarget.users {
+			usersGroupTarget := user.channel.getUsersByGroup(message.Target.Group)
+			for _, userGroupTarget := range usersGroupTarget {
 				if userGroupTarget.ID != user.ID {
-					userGroupTarget.send <- []byte(message.encode())
+					if userGroupTarget.onDifferentServer {
+						user.publishToPubsub(userGroupTarget.ID, message)
+					} else {
+						userGroupTarget.send <- []byte(message.encode())
+					}
 				}
 			}
 
@@ -372,6 +386,7 @@ func (user *User) subscribePubSub() {
 		switch user.server.PubSub.driver {
 		case PubSubDriverRedis:
 			redisClient := user.server.PubSub.conn.(*redis.Client)
+
 			pubsub := redisClient.Subscribe(user.server.ctx, fmt.Sprintf("message:%s:%s", user.channel.ID, user.ID))
 
 			defer pubsub.Close()
@@ -386,10 +401,11 @@ func (user *User) subscribePubSub() {
 					if err != nil {
 						log.Println(err)
 					} else {
-						user.send <- message.encode()
+						if user.isActive {
+							user.send <- message.encode()
+						}
 					}
 				}
-
 			}
 		}
 	}

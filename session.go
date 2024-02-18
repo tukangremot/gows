@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -119,4 +120,38 @@ func (session *Session) unregisterUserGroup(ctx context.Context, group *Group, u
 	}
 
 	return nil
+}
+
+func (session *Session) getUsersByGroup(ctx context.Context, group *Group) (map[string]*User, error) {
+	users := make(map[string]*User)
+
+	switch session.driver {
+	case SessionDriverRedis:
+		redisClient := session.conn.(*redis.Client)
+		iter := redisClient.Scan(ctx, 0, fmt.Sprintf(SessionUserGroupDataKey, group.ID, "*"), 0).Iterator()
+		for iter.Next(ctx) {
+			data, err := redisClient.Get(ctx, iter.Val()).Result()
+			if err != nil {
+				log.Println(err)
+
+				return nil, err
+			}
+
+			var user *User
+			err = json.Unmarshal([]byte(data), &user)
+			if err != nil {
+				log.Println(err)
+
+				return nil, err
+			}
+
+			users[user.ID] = user
+		}
+		if err := iter.Err(); err != nil {
+			log.Println(err)
+		}
+
+	}
+
+	return users, nil
 }

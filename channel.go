@@ -1,7 +1,6 @@
 package gochat
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -83,7 +82,6 @@ func (channel *Channel) handleUnregisterGroup(group *Group) {
 
 func (channel *Channel) findUserByID(id string) *User {
 	if channel.users[id] != nil {
-		fmt.Println(channel.users[id])
 		return channel.users[id]
 	}
 
@@ -103,4 +101,26 @@ func (channel *Channel) findUserByID(id string) *User {
 
 func (channel *Channel) findGroupByID(id string) *Group {
 	return channel.groups[id]
+}
+
+func (channel *Channel) getUsersByGroup(group *Group) map[string]*User {
+	usersGroupTarget := channel.groups[group.ID].users
+
+	if channel.server.Session != nil {
+		usersGroupInSession, err := channel.server.Session.getUsersByGroup(channel.server.ctx, group)
+		if err != nil {
+			log.Println(err)
+
+			return usersGroupTarget
+		}
+
+		for userGroupInSessionID, userGroupTarget := range usersGroupInSession {
+			if usersGroupTarget[userGroupInSessionID] == nil {
+				userGroupTarget.onDifferentServer = true
+				usersGroupTarget[userGroupInSessionID] = userGroupTarget
+			}
+		}
+	}
+
+	return usersGroupTarget
 }

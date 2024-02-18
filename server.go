@@ -1,6 +1,8 @@
 package gochat
 
-import "context"
+import (
+	"context"
+)
 
 type Server struct {
 	channels          map[string]*Channel
