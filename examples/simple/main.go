@@ -30,6 +30,7 @@ func serveWs(server *gochat.Server, w http.ResponseWriter, r *http.Request) {
 
 	go user.WritePump()
 	go user.ReadPump()
+	go user.ReadActivity()
 }
 
 func main() {

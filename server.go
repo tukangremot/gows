@@ -1,10 +1,14 @@
 package gochat
 
+import "context"
+
 type Server struct {
 	channels          map[string]*Channel
 	registerChannel   chan *Channel
 	unregisterChannel chan *Channel
+	ctx               context.Context
 	PubSub            *PubSub
+	Session           *Session
 }
 
 func NewServer(server *Server) *Server {
@@ -15,6 +19,7 @@ func NewServer(server *Server) *Server {
 	server.channels = make(map[string]*Channel)
 	server.registerChannel = make(chan *Channel)
 	server.unregisterChannel = make(chan *Channel)
+	server.ctx = context.Background()
 
 	return server
 }

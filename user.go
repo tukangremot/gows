@@ -2,10 +2,12 @@ package gochat
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -34,15 +36,16 @@ type (
 	}
 
 	User struct {
-		ID             string            `json:"id"`
-		Name           string            `json:"name"`
-		AdditionalInfo map[string]string `json:"additionalInfo,omitempty"`
-		conn           *websocket.Conn
-		server         *Server
-		channel        *Channel
-		groups         map[string]*Group
-		send           chan []byte
-		activity       chan *UserActivity
+		ID                string            `json:"id" redis:"id"`
+		Name              string            `json:"name" redis:"name"`
+		AdditionalInfo    map[string]string `json:"additionalInfo,omitempty"`
+		onDifferentServer bool
+		conn              *websocket.Conn
+		server            *Server
+		channel           *Channel
+		groups            map[string]*Group
+		send              chan []byte
+		activity          chan *UserActivity
 	}
 )
 
@@ -105,7 +108,6 @@ func (user *User) ReadPump() {
 			}
 		}
 	}
-
 }
 
 func (user *User) WritePump() {
@@ -162,6 +164,12 @@ func (user *User) SetActivity(activityType string, message *Message) {
 	}
 }
 
+func (user *User) ReadActivity() {
+	for activity := range user.GetActivity() {
+		log.Printf("%s %s", activity.Type, activity.User.ID)
+	}
+}
+
 func (user *User) handleUserConnect(message Message) {
 	if message.User != nil && message.Channel != nil {
 		user.ID = message.User.ID
@@ -174,11 +182,13 @@ func (user *User) handleUserConnect(message Message) {
 				message.Channel.ID,
 				message.Channel.Name,
 				message.Channel.AdditionalInfo,
+				user.server,
 			)
 
 			user.server.registerChannel <- user.channel
 
 			go user.channel.Run()
+			go user.subscribePubSub()
 		}
 
 		user.channel.registerUser <- user
@@ -206,6 +216,10 @@ func (user *User) handleUserdisconnect() {
 	user.SetActivity(TypeUserActivityDisconnect, nil)
 
 	if user.channel != nil {
+		for _, group := range user.groups {
+			group.unregisterUser <- user
+		}
+
 		user.channel.unregisterUser <- user
 	}
 
@@ -311,10 +325,15 @@ func (user *User) handleSendDirectMessage(message Message) {
 
 			user.send <- []byte(message.encode())
 		} else {
-			userTarget.send <- []byte(message.encode())
-
 			message.User = user
 			message.Target.User = userTarget
+
+			if userTarget.onDifferentServer {
+				user.publishToPubsub(userTarget.ID, message)
+			} else {
+				userTarget.send <- []byte(message.encode())
+			}
+
 			message.Response = &ResponseInfo{
 				Status:  true,
 				Message: ResponseMessageSuccess,
@@ -328,7 +347,7 @@ func (user *User) handleSendDirectMessage(message Message) {
 func (user *User) handlerSendGroupMessage(message Message) {
 	if message.Target.Group != nil {
 		groupTarget := user.channel.findGroupByID(message.Target.Group.ID)
-		if groupTarget != nil {
+		if groupTarget == nil {
 			message.User = user
 			message.Target.Group = groupTarget
 
@@ -345,5 +364,41 @@ func (user *User) handlerSendGroupMessage(message Message) {
 
 			user.send <- []byte(message.encode())
 		}
+	}
+}
+
+func (user *User) subscribePubSub() {
+	if user.server.PubSub != nil {
+		switch user.server.PubSub.driver {
+		case PubSubDriverRedis:
+			redisClient := user.server.PubSub.conn.(*redis.Client)
+			pubsub := redisClient.Subscribe(user.server.ctx, fmt.Sprintf("message:%s:%s", user.channel.ID, user.ID))
+
+			defer pubsub.Close()
+
+			for {
+				messageBytes, err := pubsub.ReceiveMessage(user.server.ctx)
+				if err != nil {
+					log.Println(err)
+				} else {
+					var message Message
+					err := json.Unmarshal([]byte(messageBytes.Payload), &message)
+					if err != nil {
+						log.Println(err)
+					} else {
+						user.send <- message.encode()
+					}
+				}
+
+			}
+		}
+	}
+}
+
+func (user *User) publishToPubsub(userTargetID string, message Message) {
+	redisClient := user.server.PubSub.conn.(*redis.Client)
+	err := redisClient.Publish(user.server.ctx, fmt.Sprintf("message:%s:%s", user.channel.ID, userTargetID), string(message.encode())).Err()
+	if err != nil {
+		log.Println(err)
 	}
 }

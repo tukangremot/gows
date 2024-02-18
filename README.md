@@ -261,110 +261,6 @@ Response
 }
 ```
 
-### Send Direct Message
-Payload
-```json
-{
-    "command": "message-send",
-    "target": {
-        "type": "direct",
-        "user": {
-            "id": "<your-user-target-id>"
-        }
-    },
-    "message": {
-        "type": "<message-type>", // text
-        "text": "<message-text>",
-        "additionalInfo": {} // object of string
-    }
-}
-```
-
-Example
-```json
-{
-    "command": "message-send",
-    "target": {
-        "type": "direct",
-        "user": {
-            "id": "2"
-        }
-    },
-    "message": {
-        "type": "text",
-        "text": "Hallo Emma",
-        "additionalInfo": {}
-    }
-}
-
-```
-
-Response
-```json
-{
-    "command": "message-send",
-    "user": {
-        "id": "1",
-        "name": "John",
-        "additionalInfo": {
-            "avatar": "https://example.com/avatar.jpg"
-        }
-    },
-    "message": {
-        "type": "text",
-        "text": "halo",
-        "additionalInfo": {
-            "link": "https://example.com/avatar.jpg"
-        }
-    },
-    "target": {
-        "type": "direct",
-        "user": {
-            "id": "2",
-            "name": "Emma",
-            "additionalInfo": {
-                "avatar": "https://example.com/avatar.jpg"
-            }
-        }
-    },
-    "response": {
-        "status": true,
-        "message": "success"
-    }
-}
-```
-
-The message received by the target
-```json
-{
-    "command": "message-send",
-    "user": {
-        "id": "1",
-        "name": "John",
-        "additionalInfo": {
-            "avatar": "https://example.com/avatar.jpg"
-        }
-    },
-    "message": {
-        "type": "text",
-        "text": "halo",
-        "additionalInfo": {
-            "link": "https://example.com/avatar.jpg"
-        }
-    },
-    "target": {
-        "type": "direct",
-        "user": {
-            "id": "2",
-            "name": "Emma",
-            "additionalInfo": {
-                "avatar": "https://example.com/avatar.jpg"
-            }
-        }
-    }
-}
-```
-
 ### Group Leave
 Payload
 ```json
@@ -488,6 +384,36 @@ Response
 }
 ```
 
+The message received by the target
+```json
+{
+    "command": "message-send",
+    "user": {
+        "id": "1",
+        "name": "John",
+        "additionalInfo": {
+            "avatar": "https://example.com/avatar.jpg"
+        }
+    },
+    "message": {
+        "type": "text",
+        "text": "halo",
+        "additionalInfo": {
+            "link": "https://example.com/avatar.jpg"
+        }
+    },
+    "target": {
+        "type": "direct",
+        "user": {
+            "id": "2",
+            "name": "Emma",
+            "additionalInfo": {
+                "avatar": "https://example.com/avatar.jpg"
+            }
+        }
+    }
+}
+```
 
 ### Send Group Message
 Payload
