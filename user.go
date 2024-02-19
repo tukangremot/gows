@@ -154,6 +154,14 @@ func (user *User) WritePump() {
 	}
 }
 
+func (user *User) GetConn() *websocket.Conn {
+	return user.conn
+}
+
+func (user *User) Send(message []byte) {
+	user.send <- message
+}
+
 func (user *User) GetActivity() chan *UserActivity {
 	return user.activity
 }
