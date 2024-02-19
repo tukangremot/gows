@@ -21,6 +21,7 @@ const (
 	TypeUserActivityGroupLeave     = "user-group-leave"
 	TypeUserActivityMessageSend    = "user-message-send"
 	TypeUserActivityDisconnect     = "user-disconnect"
+	TypeUserActivityCustomMessage  = "custom-message"
 )
 
 var (
@@ -32,7 +33,7 @@ type (
 	UserActivity struct {
 		Type    string
 		User    *User
-		Message *Message
+		Message interface{}
 	}
 
 	User struct {
@@ -108,6 +109,8 @@ func (user *User) ReadPump() {
 			if user.channel != nil {
 				user.handleGroupLeave(message)
 			}
+		default:
+			user.SetActivity(TypeUserActivityCustomMessage, jsonMessage)
 		}
 	}
 }
@@ -166,7 +169,7 @@ func (user *User) GetActivity() chan *UserActivity {
 	return user.activity
 }
 
-func (user *User) SetActivity(activityType string, message *Message) {
+func (user *User) SetActivity(activityType string, message interface{}) {
 	user.activity <- &UserActivity{
 		Type:    activityType,
 		User:    user,
