@@ -1,4 +1,4 @@
-module github.com/tukangremot/gochat
+module github.com/tukangremot/gows
 
 go 1.20
 

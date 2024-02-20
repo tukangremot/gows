@@ -2,12 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/tukangremot/gochat"
+	"github.com/tukangremot/gows"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
@@ -20,24 +21,30 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func serveWs(server *gochat.Server, w http.ResponseWriter, r *http.Request) {
+func serveWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 
-	client := gochat.NewUser(conn, server)
+	client := gows.NewClient(conn)
+
 	go client.WritePump()
 	go client.ReadPump()
+
+	// read message
+	for {
+		select {
+		case message := <-client.ReadMessage():
+			client.SendMessage(message) // send message to client
+		case err := <-client.GetError():
+			fmt.Println(err)
+		}
+	}
 }
 
 func main() {
-	wsServer := gochat.NewServer()
-	go wsServer.Run()
-
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(wsServer, w, r)
-	})
+	http.HandleFunc("/ws", serveWs)
 
 	httpServer := &http.Server{
 		Addr:              *addr,

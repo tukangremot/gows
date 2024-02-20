@@ -1,165 +1,67 @@
-# Gochat
+# GoWS
 
 ## Usage
 
-### Events
+### Example
 
-#### User Join
+#### Simple
+```go
+package main
 
-Payload
-```json
-{
-    "command": "user-connect",
-    "channel": {
-        "id": "<your-channel-id>",
-        "name": "<your-channel-name",
-        "additionalInfo": {} // object of string
-    },
-    "user": {
-        "id": "<your-user-id>",
-        "name": "<your-user-name",
-        "additionalInfo": {} // object of string
-    }
+import (
+	"flag"
+	"fmt"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/tukangremot/gows"
+)
+
+var addr = flag.String("addr", ":8080", "http service address")
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
-```
-Example:
-```json
-{
-    "command": "user-connect",
-    "channel": {
-        "id": "1",
-        "name": "Channel 1",
-        "additionalInfo": {
-            "icon": "https://example.com/avatar.jpg"
-        }
-    },
-    "user": {
-        "id": "1",
-        "name": "John",
-        "additionalInfo": {
-            "avatar": "https://example.com/avatar.jpg"
-        }
-    }
-}
-```
 
-Response
-```json
-{
-    "command": "user-connect",
-    "channel": {
-        "id": "1",
-        "name": "Channel 1",
-        "additionalInfo": {
-            "icon": "https://example.com/avatar.jpg"
-        }
-    },
-    "user": {
-        "id": "1",
-        "name": "John",
-        "additionalInfo": {
-            "avatar": "https://example.com/avatar.jpg"
-        }
-    },
-    "message": {
-        "type": "text",
-        "text": "connected successfully"
-    },
-    "response": {
-        "status": true,
-        "message": "success"
-    }
-}
-```
+func serveWs(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
 
-### Send Direct Message
-Payload
-```json
-{
-    "command": "message-send",
-    "user": {
-        "id": "<your-user-id>",
-        "name": "<your-user-name>",
-        "additionalInfo": {} // object of string
-    },
-    "target": {
-        "type": "direct",
-        "user": {
-            "id": "<your-user-target-id>",
-            "name": "<your-user-target-name>",
-            "additionalInfo": {} // object of string
-        }
-    },
-    "message": {
-        "type": "<message-type>", // text
-        "text": "<message-text>",
-        "additionalInfo": {} // object of string
-    }
-}
-```
+	client := gows.NewClient(conn)
 
-Response
-```json
-{
-    "command": "message-send",
-    "user": {
-        "id": "1",
-        "name": "John",
-        "additionalInfo": {
-            "avatar": "https://example.com/avatar.jpg"
-        }
-    },
-    "message": {
-        "type": "text",
-        "text": "halo",
-        "additionalInfo": {
-            "link": "https://example.com/avatar.jpg"
-        }
-    },
-    "target": {
-        "type": "direct",
-        "user": {
-            "id": "2",
-            "name": "Emma",
-            "additionalInfo": {
-                "avatar": "https://example.com/avatar.jpg"
-            }
-        }
-    },
-    "response": {
-        "status": true,
-        "message": "success"
-    }
-}
-```
+	go client.WritePump()
+	go client.ReadPump()
 
-The message received by the target
-```json
-{
-    "command": "message-send",
-    "user": {
-        "id": "1",
-        "name": "John",
-        "additionalInfo": {
-            "avatar": "https://example.com/avatar.jpg"
-        }
-    },
-    "message": {
-        "type": "text",
-        "text": "halo",
-        "additionalInfo": {
-            "link": "https://example.com/avatar.jpg"
-        }
-    },
-    "target": {
-        "type": "direct",
-        "user": {
-            "id": "2",
-            "name": "Emma",
-            "additionalInfo": {
-                "avatar": "https://example.com/avatar.jpg"
-            }
-        }
-    }
+	// read message
+	for {
+		select {
+		case message := <-client.ReadMessage():
+			client.SendMessage(message) // send message to client
+		case err := <-client.GetError():
+			fmt.Println(err)
+		}
+	}
+}
+
+func main() {
+	http.HandleFunc("/ws", serveWs)
+
+	httpServer := &http.Server{
+		Addr:              *addr,
+		ReadHeaderTimeout: 3 * time.Second,
+	}
+
+	err := httpServer.ListenAndServe()
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
 }
 ```
