@@ -44,9 +44,20 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case message := <-client.ReadMessage():
-			client.SendMessage(message) // send message to client
+			// do something whene receive a message
+			messageStr := string(message)
+			fmt.Println(messageStr)
+
+			// send message to client
+			client.SendMessage(message)
 		case err := <-client.GetError():
-			fmt.Println(err)
+			if err == gows.ErrClientDisconnected {
+				// do something if the client disconnects
+				fmt.Println(err)
+			} else {
+				//so something if something else goes wrong
+				fmt.Println(err)
+			}
 		}
 	}
 }
@@ -64,4 +75,5 @@ func main() {
 		log.Fatal("ListenAndServe: ", err)
 	}
 }
+
 ```

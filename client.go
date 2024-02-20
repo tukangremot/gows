@@ -56,11 +56,11 @@ func (client *Client) ReadPump() {
 	for {
 		_, jsonMessage, err := client.conn.ReadMessage()
 		if err != nil {
-			client.err <- err
+			client.err <- parseError(err)
 			break
 		}
 
-		client.send <- jsonMessage
+		client.read <- jsonMessage
 	}
 }
 
