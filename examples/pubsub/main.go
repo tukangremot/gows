@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -45,6 +46,10 @@ func (u *User) BroadcastMessage(ctx context.Context, rdb *redis.Client, message 
 	return nil
 }
 
+func (u *User) SendMessage(ctx context.Context, rdb *redis.Client, message []byte, userID string) error {
+	return rdb.Publish(ctx, fmt.Sprintf("m:%s", userID), message).Err()
+}
+
 func (u *User) SubscribePubsub(ctx context.Context, rdb *redis.Client) {
 	pubsub := rdb.Subscribe(ctx, fmt.Sprintf("m:%s", u.ID))
 	defer pubsub.Close()
@@ -65,14 +70,23 @@ var (
 		},
 	}
 
-	addr  = flag.String("addr", ":8080", "http service address")
-	users = make(map[string]User)
-	rdb   = redis.NewClient(&redis.Options{
+	addr = flag.String("addr", ":8080", "http service address")
+	rdb  = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "password",
 		DB:       0,
 	})
 )
+
+type Message struct {
+	User struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"user"`
+	Target *struct {
+		ID string `json:"id"`
+	} `json:"target,omitempty"`
+}
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -95,9 +109,6 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	// register to pubsub
 	user.Register(ctx, rdb)
 
-	// register to memory
-	users[user.ID] = user
-
 	// user subscribe to pubsub
 	go user.SubscribePubsub(ctx, rdb)
 
@@ -105,11 +116,21 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case message := <-client.ReadMessage():
-			user.BroadcastMessage(ctx, rdb, message)
+			var m *Message
+
+			err := json.Unmarshal(message, &m)
+			if err != nil {
+				log.Println(err)
+			}
+
+			if m.Target == nil {
+				user.BroadcastMessage(ctx, rdb, message)
+			} else {
+				user.SendMessage(ctx, rdb, message, m.Target.ID)
+			}
 		case err := <-client.GetError():
 			if err == gows.ErrClientDisconnected {
 				user.Unregister(ctx, rdb)
-				delete(users, user.ID)
 			} else {
 				log.Println(err)
 			}
@@ -119,10 +140,6 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("ok")
-	})
 
 	http.HandleFunc("/ws", serveWs)
 
