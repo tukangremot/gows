@@ -55,6 +55,8 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	flag.Parse()
+
 	http.HandleFunc("/ws", serveWs)
 
 	httpServer := &http.Server{
